@@ -14,6 +14,7 @@ lerna-debug.log*
 
 .cache
 bun.lockb
+index
 
 # Diagnostic reports (https://nodejs.org/api/report.html)
 
