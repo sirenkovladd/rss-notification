@@ -1,0 +1,6 @@
+[tasks.build]
+run = "bun build --compile --target=bun-linux-x64-modern --minify --sourcemap index.ts"
+
+[tasks.push]
+depends = ["build"]
+run = "rclone copyto ./index ec21:./code/rss-check "

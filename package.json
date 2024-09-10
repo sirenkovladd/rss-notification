@@ -4,13 +4,18 @@
   "type": "module",
   "license": "MIT",
   "devDependencies": {
-    "@types/bun": "latest"
-  },
-  "peerDependencies": {
-    "typescript": "^5.0.0"
+    "@types/bun": "latest",
+    "@types/koa": "^2.15.0",
+    "@types/node-fetch": "^2.6.11",
+    "@types/web-push": "^3.6.3",
+    "typescript": "^5.5.4"
   },
   "dependencies": {
     "@extractus/feed-extractor": "^7.1.3",
-    "redis": "^4.6.15"
+    "koa": "^2.15.3",
+    "redis": "^4.6.15",
+    "rou3": "^0.5.1",
+    "unstorage": "^1.10.2",
+    "web-push": "^3.6.7"
   }
 }
