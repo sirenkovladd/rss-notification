@@ -1,16 +1,56 @@
-import Koa from 'koa';
-import { redis, serverPort, signToken, verifyToken, type TokenPayload } from "../service";
-import { Router } from "./koa";
+import { createHash, randomBytes, type Hash } from "node:crypto";
+import { Stream } from "node:stream";
+import { logger, redis, serverPort, signToken, verifyToken, type TokenPayload } from "../service.ts";
+import { Koa, type Context } from "./koa.ts";
+import { loginPage, mainScript, styleCss } from "./macros.ts" with { type: "macro" };
+import { mainPage } from "./dynamic.ts";
 
-const app = new Koa();
+const koa = new Koa({
+  keys: process.env.SIGN_COOKIES?.split(','),
+});
 
-const router1 = new Router(app);
+koa.use(async (ctx, next) => {
+  // Logger
+  const id = randomBytes(20).toString("base64url");
+  logger.debug(`${ctx.method} ${ctx.url} ${ctx.request.ip} ${id}`);
+  ctx.id = id;
+  const start = Date.now();
+  await next();
+  const ms = Date.now() - start;
+  logger.debug(`${ctx.method} ${ctx.url} ${ctx.request.ip} ${id} - ${ms}ms ${ctx.response.status}`);
+});
 
-router1.add('GET', "/health", {
+const updater = (hash: Hash, entity: string | Buffer): Hash => (typeof entity === "string" ? hash.update(entity, "utf8") : hash.update(entity));
+
+function entitytag(entity: string | Buffer) {
+  const hash = updater(createHash("sha1"), entity).digest("base64").substring(0, 27);
+  const len = Buffer.byteLength(entity, "utf8");
+  return '"' + len.toString(16) + "-" + hash + '"';
+}
+
+koa.use(async (ctx, next) => {
+  await next();
+  const body = ctx.body;
+  if (!body || ctx.response.get("etag")) return;
+  const status = (ctx.status / 100) | 0;
+  if (status !== 2) return;
+  if (body instanceof Stream) {
+    return;
+  } else if (typeof body === "string" || Buffer.isBuffer(body)) {
+    ctx.response.etag = entitytag(body);
+  } else {
+    ctx.response.etag = entitytag(JSON.stringify(body));
+  }
+  if (ctx.response.etag === ctx.req.headers["if-none-match"]) {
+    ctx.status = 304;
+  }
+});
+
+koa.add("GET", "/api/health", {
   handler: () => new Response("OK"),
-})
+});
 
-router1.add('POST', "/login", {
+koa.add("POST", "/api/login", {
   handler: async (ctx) => {
     const body = await ctx.json();
     const userRaw = await redis.get(`user:${body.username}`);
@@ -18,58 +58,59 @@ router1.add('POST', "/login", {
       return new Response("Invalid username or password", { status: 401 });
     }
     const user = JSON.parse(userRaw);
-    if (!await Bun.password.verify(body.password, user.password)) {
+    if (!(await Bun.password.verify(body.password, user.password))) {
       return new Response("Invalid username or password", { status: 401 });
     }
-    const token = await signToken({ username: user.username })
+    const token = await signToken({ username: user.username });
     return new Response(JSON.stringify({ token }), {
       headers: {
         "Content-Type": "application/json",
-      }
+      },
     });
   },
-})
+});
 
-const getUser = async (ctx: Koa.Context): Promise<TokenPayload | null> => {
+const getUser = async (ctx: Context): Promise<TokenPayload | null> => {
   const authHeader = ctx.req.headers["Authorization"];
-  if (typeof authHeader !== 'string') {
+  if (typeof authHeader !== "string") {
     return null;
   }
   const [schema, usernameToken] = authHeader.split(" ");
   if (schema !== "AES256") {
     return null;
   }
-  const [username, token] = usernameToken.split(':');
+  const [username, token] = usernameToken.split(":");
   if (username.length && token.length) {
     const user = await verifyToken(username, token);
     return user;
   }
   return null;
-}
+};
 
-router1.add('GET', "/", {
-  handler: (ctx) => ctx.body = 'Hello world!',
+koa.add("GET", "/main.js", {
+  handler: async (ctx) => {
+    ctx.body = await mainScript();
+  },
+});
+
+koa.add("GET", "/style.css", {
+  handler: async (ctx) => {
+    ctx.body = await styleCss();
+  },
+});
+
+koa.add("GET", "/", {
+  handler: async (ctx) => {
+    const token = ctx.cookies.get("token", { signed: true });
+    console.log("ctx", token);
+    ctx.body = await loginPage()
+    ctx.cookies.set("token", "test", {  })
+  },
 });
 
 export function runServer() {
-  const server = app.listen(serverPort);
+  const server = koa.listen(serverPort);
   return () => {
     server.close();
   };
-  // const server = Bun.serve({
-  //   port: serverPort,
-  //   fetch(req) {
-  //     const url = new URL(req.url);
-  //     logger.debug({ url: url.pathname }, "Request received");
-  //     // const route = router.lookup(url.pathname);
-  //     const route = findRoute(router, req.method, url.pathname);
-  //     if (route) {
-  //       return route.handler(req);
-  //     }
-  //     return new Response("Not found", { status: 404 });
-  //   },
-  // });
-  // return () => {
-  //   server.stop();
-  // };
 }

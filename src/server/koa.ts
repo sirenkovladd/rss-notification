@@ -1,27 +1,37 @@
-import type Koa from "koa";
+import KoaBase from "koa";
 import { addRoute, createRouter, findRoute } from "rou3";
+export type { Context } from "koa";
 
 type Route = {
-  handler: (ctx: Koa.Context) => unknown;
-}
+  handler: (ctx: KoaBase.Context) => unknown;
+};
 
-export class Router {
+export class Koa {
+  app;
   router;
-  constructor(app: Koa) {
+
+  constructor(opt: ConstructorParameters<typeof KoaBase>[0]) {
+    this.app = new KoaBase(opt);
     this.router = createRouter<Route>();
-    app.use(this.use.bind(this))
+  }
+
+  use(middleware: KoaBase.Middleware) {
+    return this.app.use(middleware);
+  }
+
+  listen(port: number) {
+    this.app.use(async (ctx: KoaBase.Context, next: KoaBase.Next) => {
+      const route = findRoute(this.router, ctx.method, ctx.path);
+      if (route) {
+        await route.data.handler(ctx);
+        return;
+      }
+      next();
+    });
+    return this.app.listen(port);
   }
 
   add(method: string, path: string, body: Route) {
-    addRoute(this.router, method, path, body)
-  }
-
-  private async use(ctx: Koa.Context, next: Koa.Next) {
-    const route = findRoute(this.router, ctx.method, ctx.path)
-    if (route) {
-      ctx.body = await route.data.handler(ctx);
-      return;
-    }
-    next();
+    addRoute(this.router, method, path, body);
   }
 }

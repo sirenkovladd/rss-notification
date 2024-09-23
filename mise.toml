@@ -1,6 +1,19 @@
 [tasks.build]
-run = "bun build --compile --target=bun-linux-x64-modern --minify --sourcemap index.ts"
+sources = ['src/**/*', 'index.ts'] # skip running if these files haven't changed
+outputs = ['index.js']
+run = "bun build --target=bun index.ts --outfile index.js"
+
+[tasks.build-ts]
+run = "bun build --target=bun --minify index.ts"
+
+[tasks.run]
+alias = 'r'
+run = "bun -r ./plugin.ts index.ts"
+
+[tasks.watch]
+alias = 'w'
+run = "watchexec -e ts -r bun -r ./plugin.ts index.ts"
 
 [tasks.push]
 depends = ["build"]
-run = "rclone copyto ./index ec21:./code/rss-check "
+run = "rclone copyto ./index.js ec21:./code/rss-check.js "

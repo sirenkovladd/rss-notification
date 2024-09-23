@@ -1,8 +1,8 @@
 import { extractFromXml, type FeedData, type FeedEntry } from "@extractus/feed-extractor";
 import { setTimeout } from "node:timers/promises";
 import type { PushSubscription } from "web-push";
-import { rss as rssConfig } from "../config.json";
-import { logger, redis, sendTelegram, webpush } from "./service";
+import { rss as rssConfig } from "../config.json" assert { type: "json" };
+import { logger, redis, sendTelegram, webpush } from "./service.ts";
 
 logger.debug("Connected to Redis");
 
@@ -45,7 +45,7 @@ async function extract(url: string) {
 
 async function sendUserMessage(userId: number, entry: FeedEntry, rss: FeedData) {
   // const { entries, ...rssOptions } = rss;
-  logger.debug({userId, entry, title: rss.title, description: rss.description}, "Sending message");
+  logger.debug({ userId, entry, title: rss.title, description: rss.description }, "Sending message");
   const text = `📰 ${rss.title}\n${entry.title}\n${entry.link}`;
   const result = await sendTelegram({
     chat_id: userId,
@@ -64,7 +64,7 @@ async function sendUserMessage(userId: number, entry: FeedEntry, rss: FeedData) 
     //   ]
     // }
   });
-  logger.debug({status: result.status, text: await result.text()}, "Sent message");
+  logger.debug({ status: result.status, text: await result.text() }, "Sent message");
 }
 
 export async function sendWebApi(subscription: PushSubscription, item: FeedEntry, rss: FeedData) {
@@ -74,7 +74,7 @@ export async function sendWebApi(subscription: PushSubscription, item: FeedEntry
     link: item.link,
   });
   const result = await webpush.sendNotification(subscription, dataToSend);
-  logger.debug({result}, "Sent web push");
+  logger.debug({ result }, "Sent web push");
 }
 
 async function notify(subscribers: (typeof rssConfig)[keyof typeof rssConfig], newItem: FeedEntry, rss: FeedData) {
@@ -92,9 +92,9 @@ export async function loop() {
   while (true) {
     const keys = Object.keys(rssConfig);
     if (keys.length !== 0) {
-      logger.debug({keys}, "Got keys");
+      logger.debug({ keys }, "Got keys");
       const values = await redis.mGet(keys.map((v) => `rss:${v}`));
-      logger.debug({values}, "Got values");
+      logger.debug({ values }, "Got values");
       const lastIds = keys.reduce(
         (acc, key, i) => {
           const value = values[i];
@@ -104,30 +104,32 @@ export async function loop() {
         {} as Record<string, string>,
       );
       const result = Object.fromEntries(
-        (await Promise.all(
-          Object.entries(lastIds).map(async ([key, value]) => {
-            logger.debug({key}, "Extracting");
-            const rss = await extract(key);
-            if (!rss) {
-              return [key, undefined] as const
-            }
-            // rss.entries?.forEach(r => console.log(r.title))
-            logger.debug({key, length: (rss.entries as FeedEntry[])?.length}, "Extracted");
-            const newItems =
-              (rss.entries as FeedEntry[])?.slice(
-                0,
-                (rss.entries as FeedEntry[]).findIndex((v) => v.id === value),
-              ) ?? [];
-            logger.debug({length: newItems.length}, "New items");
-            return [
-              key,
-              {
-                newItems,
-                rss,
-              },
-            ] as const;
-          }),
-        )).filter((v) => !!v[1]),
+        (
+          await Promise.all(
+            Object.entries(lastIds).map(async ([key, value]) => {
+              logger.debug({ key }, "Extracting");
+              const rss = await extract(key);
+              if (!rss) {
+                return [key, undefined] as const;
+              }
+              // rss.entries?.forEach(r => console.log(r.title))
+              logger.debug({ key, length: (rss.entries as FeedEntry[])?.length }, "Extracted");
+              const newItems =
+                (rss.entries as FeedEntry[])?.slice(
+                  0,
+                  (rss.entries as FeedEntry[]).findIndex((v) => v.id === value),
+                ) ?? [];
+              logger.debug({ length: newItems.length }, "New items");
+              return [
+                key,
+                {
+                  newItems,
+                  rss,
+                },
+              ] as const;
+            }),
+          )
+        ).filter((v) => !!v[1]),
       );
       if (warmed) {
         await Promise.all(
@@ -140,13 +142,12 @@ export async function loop() {
       } else {
         warmed = true;
       }
-      const listUpdated: [string, string][] = Object.entries(result).filter(
-        ([, { newItems, rss }]) => newItems.length > 0,
-      ).map<[string, string | undefined]>(([url, values]) => [`rss:${url}`, values.rss.entries?.[0]?.id]).filter(
-        (arr): arr is [string, string] => !!arr[1],
-      );
+      const listUpdated: [string, string][] = Object.entries(result)
+        .filter(([, { newItems, rss }]) => newItems.length > 0)
+        .map<[string, string | undefined]>(([url, values]) => [`rss:${url}`, values.rss.entries?.[0]?.id])
+        .filter((arr): arr is [string, string] => !!arr[1]);
       if (listUpdated.length > 0) {
-        logger.debug({listUpdated}, "Updating list");
+        logger.debug({ listUpdated }, "Updating list");
         await redis.mSet(listUpdated);
       }
     }

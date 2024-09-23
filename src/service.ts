@@ -1,4 +1,4 @@
-import crypto from 'node:crypto';
+import crypto from "node:crypto";
 import { createClient } from "redis";
 import webpush from "web-push";
 
@@ -25,8 +25,9 @@ class Logger {
     const objV = {
       ...obj,
       level,
-      ...(msg ? { msg } : {})
-    }
+      date: new Date().toISOString().replace(/Z/g, ""),
+      ...(msg ? { msg } : {}),
+    };
     log(JSON.stringify(objV));
   }
 
@@ -86,17 +87,17 @@ webpush.setVapidDetails(requireEnv("VAPID_SUBJECT"), requireEnv("VAPID_PUBLIC_KE
 export const serverPort = +(process.env.PORT || "3000");
 
 const tokenSecret = requireEnv("TOKEN_SECRET");
-const keySecret = Buffer.from(tokenSecret, 'base64url').subarray(0, 32);
-const ivSecret = Buffer.from(tokenSecret, 'base64url').subarray(32, 48);
+const keySecret = Buffer.from(tokenSecret, "base64url").subarray(0, 32);
+const ivSecret = Buffer.from(tokenSecret, "base64url").subarray(32, 48);
 
 export type TokenPayload = {
   username: string;
-}
+};
 export async function signToken(payload: TokenPayload) {
   const random = crypto.randomBytes(31).toString("base64url");
   const cipher = crypto.createCipheriv("aes-256-cbc", keySecret, ivSecret);
   const token = cipher.update(random, "base64url", "base64url") + cipher.final("base64url");
-  await redis.set(`token:${payload.username}:${random}`, JSON.stringify(payload), {})
+  await redis.set(`token:${payload.username}:${random}`, JSON.stringify(payload), { EX: 24 * 60 * 60 });
   return token;
 }
 
@@ -108,6 +109,7 @@ export async function verifyToken(username: string, token: string): Promise<Toke
   } catch (e) {
     return null;
   }
+
   const payload = await redis.get(`token:${username}:${random}`);
   if (payload === null) {
     return null;

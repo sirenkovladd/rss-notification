@@ -1,6 +1,6 @@
-import { loop } from "./src/loop";
-import { runServer } from "./src/server";
-import { redis } from "./src/service";
+import { loop } from "./src/loop.ts";
+import { runServer } from "./src/server/index.ts";
+import { redis } from "./src/service.ts";
 
 async function main() {
   let closeServer: (() => void) | undefined;
