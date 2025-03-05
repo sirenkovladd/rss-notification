@@ -1,10 +1,12 @@
-import { htmlTemplate } from './staticFile' with { type: "macro" };
+import { HomePage } from "../client/templates";
+import type { TokenPayload } from "../service/storage";
+import { htmlTemplate } from "./staticFile" with { type: "macro" };
 
-type UserType = {}
 function template(body: string) {
-  return htmlTemplate().replace('<ssr></ssr>', body);
+	return htmlTemplate().replace("<ssr></ssr>", body);
 }
 
-export function mainPage(user?: UserType) {
-  return template('Nice');
+export async function mainPage(user: TokenPayload) {
+	const list = [{ type: "notification", id: "1", name: "Notification 1" }];
+	return HomePage(user, { list });
 }

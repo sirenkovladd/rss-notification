@@ -1,17 +1,15 @@
-async function build() {
-  while (true) {
-    const startTime = Date.now();
-    const subprocess = Bun.spawn('bun build --target=bun index.ts --outfile index1.js'.split(' '), { stdout: 'inherit' });
-    const timeout = setTimeout(() => {
-      // console.log('Timeout');
-      subprocess.kill();
-    }, 500);
-    const number = await subprocess.exited;
-    console.log('Build time:', Date.now() - startTime, 'ms', 'Exit code:', number, subprocess.killed, subprocess.signalCode, subprocess.exitCode);
-    if (number === 0) {
-      break;
-    }
-  }
-}
+// "bun build --target=bun index.ts | gzip -9 > index.js.gz"
+const result = await Bun.build({
+  entrypoints: ["./index.ts"],
+  // target: "bun",
+});
 
-build();
+console.log(result);
+
+// if (result.success) {
+//   console.log('OK');
+//   // console.log(await result.outputs[0].text());
+//   Bun.write(result.outputs[0].path, Bun.gzipSync(await result.outputs[0].text()));
+// } else {
+//   console.error(...result.logs);
+// }

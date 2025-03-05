@@ -1,5 +1,5 @@
-import { readFileSync } from "fs";
+import { readFileSync } from "node:fs";
 
 export function htmlTemplate() {
-  return readFileSync("./src/client/index.html", "utf8")
+	return readFileSync("./src/client/index.html", "utf8");
 }

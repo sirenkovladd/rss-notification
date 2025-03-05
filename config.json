@@ -1,6 +1,28 @@
 {
-  "accounts": {
-  },
-  "rss": {
-  }
+	"json": {
+		"https://earthquake.usgs.gov/earthquakes/feed/v1.0/summary/2.5_hour.geojson": {
+			"type": "earthquake.usgs.gov",
+			"mag": 4.0,
+			"radius": 400000,
+			"latitude": 49.161845,
+			"longitude": -123.009247,
+			"telegram": [],
+			"web-push": [
+				{
+					"endpoint": "https://fcm.googleapis.com/fcm/send/???",
+					"expirationTime": null,
+					"keys": {
+						"p256dh": "???",
+						"auth": "????"
+					}
+				}
+			],
+			"api2": [
+				{
+					"endpoint": "https://trigger.macrodroid.com/????",
+					"method": "GET"
+				}
+			]
+		}
+	}
 }

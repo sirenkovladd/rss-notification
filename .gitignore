@@ -13,7 +13,7 @@ lerna-debug.log*
 # Caches
 
 .cache
-bun.lockb
+bun.lock*
 index
 
 # Diagnostic reports (https://nodejs.org/api/report.html)
@@ -116,6 +116,7 @@ web_modules/
 
 .next
 out
+index.js.gz
 
 # Nuxt.js build / generate output
 
